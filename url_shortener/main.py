@@ -13,6 +13,7 @@ app = FastAPI()
 workflow = UrlShortenerWorkflow()
 Base.metadata.create_all(bind=engine)
 
+
 def get_db():
     db = SessionLocal()
     try:
@@ -43,7 +44,7 @@ async def get_long_url(
         url_hash: str,
         request: Request,
         db: Session = Depends(get_db)
-    ):
+):
 
     url = await UrlShortenerWorkflow.get_short_url_by_hash(db, url_hash)
 
