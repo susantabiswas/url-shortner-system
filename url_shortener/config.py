@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     environment: str = "dev",
     base_url: str = "http://127.0.0.1:8080"
     db_url: str = "sqlite:///./shortener.db"
+    jwt_secret_key: str = None
+    jwt_token_expiry_in_minutes: int = 60
 
     # load the class with the .env file values
     # since we are using pydantic, the values will also be type

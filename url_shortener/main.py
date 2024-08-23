@@ -8,4 +8,4 @@ app.include_router(short_urls.router)
 
 @app.get("/")
 async def root():
-    return "Welcome to URL shortener service."
+    return "Welcome to URL shortener."
