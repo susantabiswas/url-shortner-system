@@ -1,5 +1,5 @@
 from sqlalchemy import Boolean, Column, Integer, String
-from ..utils import database
+from url_shortener.utils import database
 
 
 # DB Schema for storing the ShortUrl details.

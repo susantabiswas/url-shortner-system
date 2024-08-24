@@ -2,20 +2,21 @@ from pydantic import BaseModel
 
 
 # Base class to represent a Url
-class UrlBase(BaseModel):
+class UrlBaseSchema(BaseModel):
     long_url: str
     description: str = None
 
 
 # Class to represent the URL request for shortening
-class UrlCreate(UrlBase):
+class UrlCreateSchema(UrlBaseSchema):
     pass
 
 
 # Class to represent the short Url without extra data
-class ShortUrlBase(UrlCreate):
+class ShortUrlBaseSchema(UrlCreateSchema):
     short_url: str
 
+    # DEV NOTE
     # This allows pydantic to accept the ORM class object
     # with matching fields. Useful when we want to return the
     # ORM DB row as the response, we don't have to create an instance
@@ -26,7 +27,7 @@ class ShortUrlBase(UrlCreate):
 
 
 # Class to represent the short URL with additional data
-class ShortUrl(ShortUrlBase):
+class ShortUrlSchema(ShortUrlBaseSchema):
     is_active: bool = True
     clicks: int = 0
 

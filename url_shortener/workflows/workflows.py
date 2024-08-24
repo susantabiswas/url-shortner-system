@@ -1,11 +1,12 @@
 import secrets
-import url_shortener.models.short_url as models
-import url_shortener.schema.short_url as schema
-from ..utils.database import SessionLocal
-from ..config import get_settings
+from url_shortener.schema import short_url_schema
+from url_shortener.models import short_url_model
+from url_shortener.utils.database import SessionLocal
+from url_shortener.config import get_settings
 
 
 BASE_URL = get_settings().base_url + "/shortUrls"
+
 
 # Class that handles the workflows of URL shortener
 class UrlShortenerWorkflow:
@@ -34,7 +35,7 @@ class UrlShortenerWorkflow:
     # Insert a short URL object in DB
     async def create_short_url(
             db: SessionLocal,
-            url: models.UrlBase) -> models.ShortUrlBase:
+            url: short_url_schema.UrlBaseSchema) -> short_url_schema.ShortUrlBaseSchema:
 
         url_hash = await UrlShortenerWorkflow.generate_hash_key()
 
@@ -48,8 +49,8 @@ class UrlShortenerWorkflow:
             url_hash=url_hash,
             db=db)
 
-        # NOTE: We are returning an object of `models.ShortUrlBase` and not
-        # of DB schema `schema.ShortUrl`. Pydantic is able to perform the
+        # NOTE: We are returning an object of `schema.ShortUrlBaseSchema` and not
+        # of DB schema `models.ShortUrl`. Pydantic is able to perform the
         # validation of data since we add the required field (short_url)
         # necessary to have an instance of `models.ShortUrlBase` and marked the
         # pydantic model with following (allows it to interpret ORM class):
@@ -62,12 +63,11 @@ class UrlShortenerWorkflow:
         return short_url
 
     async def insert_short_url(
-        long_url: str,
-        url_hash: str,
-        db: SessionLocal
-    ) -> schema.ShortUrl:
+            long_url: str,
+            url_hash: str,
+            db: SessionLocal) -> short_url_model.ShortUrl:
 
-        short_url = schema.ShortUrl(
+        short_url = short_url_model.ShortUrl(
             long_url=long_url,
             url_hash=url_hash)
 
@@ -79,15 +79,26 @@ class UrlShortenerWorkflow:
 
     # Gets an DB schema ShortUrl object
     async def get_short_url_by_hash(
-        db: SessionLocal,
-        url_hash: str
-    ) -> schema.ShortUrl | None:
+            db: SessionLocal,
+            url_hash: str) -> short_url_model.ShortUrl | None:
+            
         url = (
-            db.query(schema.ShortUrl)
+            db.query(short_url_model.ShortUrl)
             .filter(
-                schema.ShortUrl.url_hash == url_hash,
-                schema.ShortUrl.is_active)
+                short_url_model.ShortUrl.url_hash == url_hash,
+                short_url_model.ShortUrl.is_active)
             .first()
         )
 
         return url
+
+
+class UserWorkflow:
+    async def get_user(user_id: int):
+        pass
+
+    async def insert_user():
+        pass
+
+    async def delete_user():
+        pass
