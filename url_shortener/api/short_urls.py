@@ -10,7 +10,7 @@ from url_shortener.utils.database import engine, Base, get_db
 from url_shortener.exceptions import exceptions
 from url_shortener.workflows.workflows import UrlShortenerWorkflow
 
-router = APIRouter(
+shorturl_router = APIRouter(
     tags=["shorturls"]
 )
 
@@ -21,7 +21,8 @@ Base.metadata.create_all(bind=engine)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-@router.post("/shortUrls", response_model=short_url_schema.ShortUrlBaseSchema)
+@shorturl_router.post("/shortUrls",
+                response_model=short_url_schema.ShortUrlBaseSchema)
 async def shorten_url(
         url: short_url_schema.UrlBaseSchema,
         db: Session = Depends(get_db)) -> short_url_schema.ShortUrlBaseSchema:
@@ -33,7 +34,7 @@ async def shorten_url(
     return await UrlShortenerWorkflow.create_short_url(db, url)
 
 
-@router.get("/shortUrls/{url_key}")
+@shorturl_router.get("/shortUrls/{url_key}")
 async def get_long_url(
         token: Annotated[str, Depends(oauth2_scheme)],
         url_key: str,

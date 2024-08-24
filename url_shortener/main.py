@@ -1,9 +1,9 @@
 from fastapi import FastAPI
-from .api import short_urls
+from url_shortener.api import short_urls
 
 
 app = FastAPI()
-app.include_router(short_urls.router)
+app.include_router(short_urls.shorturl_router)
 
 
 @app.get("/")
