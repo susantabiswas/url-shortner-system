@@ -1,11 +1,18 @@
 import secrets
 from url_shortener.schema import short_url_schema
 from url_shortener.models import short_url_model
-from url_shortener.utils.database import SessionLocal
+from url_shortener.models import user_model
+from url_shortener.schema import user_schema
+from sqlalchemy.orm import Session
 from url_shortener.config import get_settings
-
+from url_shortener.dao.dao_base import DaoBase, ShortUrlDaoBase, UserDaoBase
+from url_shortener.dao.short_url_dao import ShortUrlDao
+from url_shortener.dao.user_dao import UserDao
+from passlib.context import CryptContext
 
 BASE_URL = get_settings().base_url + "/shortUrls"
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 # Class that handles the workflows of URL shortener
@@ -13,7 +20,11 @@ class UrlShortenerWorkflow:
     # Contains possible chars: a-zA-Z0-9
     char_set: str = ""
 
-    def __init__(self):
+    def __init__(self, db):
+        # To perform the DB operations, we use the DAO object
+        # for ShortUrl model
+        self.shorturl_dao: ShortUrlDaoBase = ShortUrlDao(db)
+        
         # A-Z
         for ch in range(ord('A'), ord('A') + 26):
             UrlShortenerWorkflow.char_set += chr(ch)
@@ -34,20 +45,19 @@ class UrlShortenerWorkflow:
 
     # Insert a short URL object in DB
     async def create_short_url(
-            db: SessionLocal,
+            self,
             url: short_url_schema.UrlBaseSchema) -> short_url_schema.ShortUrlBaseSchema:
 
         url_hash = await UrlShortenerWorkflow.generate_hash_key()
 
         # an url hash key is only accepted if it is unique,
         # incase there is already a key, generate another one
-        while await UrlShortenerWorkflow.get_short_url_by_hash(db, url_hash):
+        while await self.shorturl_dao.get_by_url_hash(url_hash):
             url_hash = UrlShortenerWorkflow.generate_hash_key()
 
-        short_url = await UrlShortenerWorkflow.insert_short_url(
+        short_url = await self.shorturl_dao.insert(
             long_url=url.long_url,
-            url_hash=url_hash,
-            db=db)
+            url_hash=url_hash)
 
         # NOTE: We are returning an object of `schema.ShortUrlBaseSchema` and not
         # of DB schema `models.ShortUrl`. Pydantic is able to perform the
@@ -59,46 +69,36 @@ class UrlShortenerWorkflow:
         #        from_attributes = True
         # ```
         short_url.short_url = BASE_URL + "/" + short_url.url_hash
-
         return short_url
 
-    async def insert_short_url(
-            long_url: str,
-            url_hash: str,
-            db: SessionLocal) -> short_url_model.ShortUrl:
 
-        short_url = short_url_model.ShortUrl(
-            long_url=long_url,
-            url_hash=url_hash)
-
-        db.add(short_url)
-        db.commit()
-        db.refresh(short_url)
-
-        return short_url
-
-    # Gets an DB schema ShortUrl object
-    async def get_short_url_by_hash(
-            db: SessionLocal,
-            url_hash: str) -> short_url_model.ShortUrl | None:
-            
-        url = (
-            db.query(short_url_model.ShortUrl)
-            .filter(
-                short_url_model.ShortUrl.url_hash == url_hash,
-                short_url_model.ShortUrl.is_active)
-            .first()
-        )
-
-        return url
+    async def delete_by_url_hash(self, url_hash: str):
+        return await self.shorturl_dao.delete_by_url_hash(url_hash)
 
 
 class UserWorkflow:
-    async def get_user(user_id: int):
-        pass
+    def __init__(self, db):
+        self.user_dao: UserDaoBase = UserDao(db)
 
-    async def insert_user():
-        pass
+    async def get_user(self, user_id: int) -> user_model.User:
+        user = await self.user_dao.get_by_user_id(user_id)
+        return user
 
-    async def delete_user():
-        pass
+    async def create_user(self, user: user_schema.UserCreate) -> user_model.User:
+        # hash the password before storing it in DB
+        hashed_password = AuthWorkflow.get_password_hash(user.password)
+        user.password = hashed_password
+        user = await self.user_dao.insert(user, hashed_password)
+        return user
+
+    async def delete_user(self, user_id: int):
+        return await self.user_dao.delete_by_user_id(user_id)
+
+
+class AuthWorkflow:
+    def __init__(self, db):
+        self.user_dao: UserDaoBase = UserDaoBase(db)
+
+    @staticmethod
+    def get_password_hash(password: str) -> str:
+        return pwd_context.hash(password)

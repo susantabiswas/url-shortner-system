@@ -1,31 +1,71 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from url_shortener.config import get_settings
 
-engine = create_engine(
-    get_settings().db_url,
-    connect_args={"check_same_thread": False}  # Only req for sqlite
-)
 
-# default db session settings
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine
-)
-
-Base = declarative_base()
-
-
-def get_db() -> Session:
-    """Get a db session instance of :class:`Session`.
-
-    Yields:
-        db: instance of :class:`Session`
+class DatabaseManager:
+    """Class to manage the database connection setup.
     """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    # Base class for ORM models. When a class inherits this class, 
+    # sqlAlchemy knows that it is an ORM model and it should be 
+    # mapped to a table in the DB.
+    Base = declarative_base()
+
+    def __init__(
+        self,
+        db_url: str,
+        pool_size: int = 5,
+        pool_recycle: int = 3600,
+        isolation_level: str = "SERIALIZABLE",
+        connect_args: dict = {}
+    ) -> None:
+
+        # Create a new engine instance.Engine is a way to interact with the DB.
+        self.engine = create_engine(
+            db_url,
+            pool_size=pool_size,
+            pool_recycle=pool_recycle,
+            isolation_level=isolation_level,
+            connect_args=connect_args
+        )
+
+        # This is a factory which creates a new SqlAlchemy session.
+        # Session is not a separate connection but rather a logical isolation
+        # for a request to interact with DB. Behind the scenes it asks for a
+        # connection from sqlAlchemy's connection pool.
+        self.SessionLocal = sessionmaker(
+            autocommit=False,
+            autoflush=False,
+            bind=self.get_engine()
+        )
+
+    def get_engine(self) -> Engine:
+        return self.engine
+
+    async def get_db(self) -> Session:
+        """Get a db session instance of :class:`Session`.
+
+        Yields:
+            db: instance of :class:`Session`
+        """
+        db = self.SessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    def create_tables(self) -> None:
+        DatabaseManager.Base.metadata.create_all(bind=self.get_engine())
+
+
+# Create the instance for exporting
+db_manager = DatabaseManager(
+    get_settings().db_url,
+    connect_args={"check_same_thread": False})
+
+# Required for getting the db session
+get_db = db_manager.get_db
+
+# Required for creating ORM classes
+Base = DatabaseManager.Base
