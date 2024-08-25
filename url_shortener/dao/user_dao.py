@@ -38,7 +38,7 @@ class UserDao(UserDaoBase):
                 .filter(User.email == email)
                 .first()
         )
-    
+
         return user
 
 

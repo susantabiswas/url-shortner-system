@@ -21,7 +21,6 @@ JWT_ALGORITHM = "HS256"
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
 # Class that handles the workflows of URL shortener
 class UrlShortenerWorkflow:
     # Contains possible chars: a-zA-Z0-9
@@ -61,7 +60,7 @@ class UrlShortenerWorkflow:
         # incase there is already a key, generate another one
         while await self.shorturl_dao.get_by_url_hash(url_hash):
             url_hash = UrlShortenerWorkflow.generate_hash_key()
-
+        
         short_url = await self.shorturl_dao.insert(
             long_url=url.long_url,
             url_hash=url_hash)
@@ -79,7 +78,10 @@ class UrlShortenerWorkflow:
         return short_url
 
     async def get_short_url_by_hash(self, url_hash: str):
-        return await self.shorturl_dao.get_by_url_hash(url_hash)
+        url = await self.shorturl_dao.get_by_url_hash(url_hash)
+        if not url:
+            exceptions.not_found_exception(url_hash)
+        return url
 
 
     async def delete_by_url_hash(self, url_hash: str):
@@ -159,5 +161,29 @@ class OAuthWorkflow(AuthWorkflow):
         # Generate a JWT token for the valid user
         jwt = await OAuthWorkflow.create_jwt_access_token({"sub": username})
         return auth_schema.Token(access_token=jwt, token_type="bearer")
+
+
+    async def get_current_user(self, token: auth_schema.Token) -> user_model.User:
+        try:
+            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+            username: str = payload.get("sub")
+            if username is None:
+                raise HTTPException(status_code=401, detail="Invalid token")
+
+            expiry = payload.get("exp")
+            if expiry is None or expiry < datetime.utcnow().timestamp():
+                raise HTTPException(status_code=401, detail="Token is expired")
+
+        except jwt.PyJWTError:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+        print(f"JWT decoded for username: {username}")
+        user = await self.user_dao.get_user_by_email(username)
+
+        if user is None:
+            raise HTTPException(status_code=404, detail=f"JWT User {username} not found")
+
+        print(f"User: {username} authenticated")
+        return user
 
 

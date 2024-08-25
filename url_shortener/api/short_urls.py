@@ -7,24 +7,22 @@ from sqlalchemy.orm import Session
 import validators
 from url_shortener.schema import short_url_schema
 from url_shortener.exceptions import exceptions
-from url_shortener.workflows.workflows import UrlShortenerWorkflow
+from url_shortener.workflows.workflows import UrlShortenerWorkflow, OAuthWorkflow
 from url_shortener.utils.database import get_db
 
 shorturl_router = APIRouter(
     tags=["shorturls"]
 )
 
-# Base.metadata.create_all(bind=engine)
-
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 @shorturl_router.post("/shortUrls", response_model=short_url_schema.ShortUrlBaseSchema)
 async def shorten_url(
+        token: Annotated[str, Depends(oauth2_scheme)],
         url: short_url_schema.UrlBaseSchema,
         db: Session = Depends(get_db)) -> short_url_schema.ShortUrlBaseSchema:
-
+    
     # ensure that the email format is valid
     if not validators.url(url.long_url):
         exceptions.bad_request_exception(msg="Input URL is not valid.")
