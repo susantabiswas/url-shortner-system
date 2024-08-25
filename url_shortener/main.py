@@ -3,6 +3,10 @@ from url_shortener.api import short_urls, users, auth
 from url_shortener.utils.database import db_manager, Base
 from url_shortener.config import get_settings
 import uvicorn
+from url_shortener.config import get_settings
+
+
+FASTAPI_PORT = get_settings().fastapi_port
 
 app = FastAPI()
 
@@ -21,4 +25,4 @@ async def root():
 
 
 if __name__ == "__main__":
-    uvicorn.run("url_shortener.main:app", host="0.0.0.0", port=8002, reload=True)
+    uvicorn.run("url_shortener.main:app", host="0.0.0.0", port=FASTAPI_PORT, reload=True)

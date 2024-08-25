@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     db_url: str = "sqlite:///./shortener.db"
     jwt_secret_key: str = None
     jwt_token_expiry_in_minutes: int = 60
+    fastapi_port: int = 8080
 
     # load the class with the .env file values
     # since we are using pydantic, the values will also be type
