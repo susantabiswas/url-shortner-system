@@ -28,9 +28,6 @@ class ShortUrlDao(ShortUrlDaoBase):
                 .first()
         )
 
-        if not url:
-            exceptions.not_found_exception(url_hash)
-            
         return url
 
 
