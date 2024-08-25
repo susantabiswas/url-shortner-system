@@ -8,9 +8,12 @@ from url_shortener.config import get_settings
 from url_shortener.dao.dao_base import DaoBase, ShortUrlDaoBase, UserDaoBase
 from url_shortener.dao.short_url_dao import ShortUrlDao
 from url_shortener.dao.user_dao import UserDao
+from url_shortener.utils.database import get_db
 from passlib.context import CryptContext
 from url_shortener.exceptions import exceptions
+from fastapi import Request, Depends, status
 from fastapi.exceptions import HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from datetime import datetime, timedelta
 import jwt
 
@@ -123,15 +126,37 @@ class AuthWorkflow:
         return pwd_context.verify(plain_pwd, hashed_pwd)
 
 
-class OAuthWorkflow(AuthWorkflow):
+class OAuthWorkflow(HTTPBearer):
     # OAuth2
     # 1. fetch username and pwd from request
     # 2. check if user exists
     # 3. validate pwd for valid user
     # 4. if valid, generate and return a JWT token with updated TTL expiry
 
-    def __init__(self, db):
+    def __init__(self, db: Session = Depends(get_db), auto_error: bool = True):
+        super(OAuthWorkflow, self).__init__(auto_error=auto_error)
         self.user_dao: UserDaoBase = UserDao(db)
+
+    # Callable, when the object is called, then this will fetch the user
+    # corresponding to the JWT token. In case the token is invalid, exception is raised
+    # using this, we can directly use this class as a dependency in the FastAPI routes
+    async def __call__(self, request: Request, db: Session = Depends(get_db)):
+        self.user_dao: UserDaoBase = UserDao(db)
+        credentials: HTTPAuthorizationCredentials = await super(OAuthWorkflow, self).__call__(request)
+        
+        if not credentials:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Invalid Authorization token.")
+
+        if not credentials.scheme == "Bearer":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Invalid Authentication scheme.")
+
+        user = await self.get_current_user(credentials.credentials)
+        return user
+
 
     # Creates a JWT token
     @staticmethod
@@ -152,7 +177,7 @@ class OAuthWorkflow(AuthWorkflow):
         # exists, as that can acts as a predicate for checking if an email
         # exists in case of a brute force attack by an attacker
         if not user or \
-            (not await OAuthWorkflow.validate_password(plain_password, user.hashed_password)):
+            (not await AuthWorkflow.validate_password(plain_password, user.hashed_password)):
             raise HTTPException(
                 status_code=401, 
                 detail="Incorrect username or password",
@@ -166,6 +191,7 @@ class OAuthWorkflow(AuthWorkflow):
     async def get_current_user(self, token: auth_schema.Token) -> user_model.User:
         try:
             payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+
             username: str = payload.get("sub")
             if username is None:
                 raise HTTPException(status_code=401, detail="Invalid token")
