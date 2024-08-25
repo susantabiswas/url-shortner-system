@@ -6,6 +6,15 @@ class UrlBaseSchema(BaseModel):
     long_url: str
     description: str = None
 
+    class Config:
+        # For swagger spec example
+        json_schema_extra = {
+            "example": {
+                "long_url": "https://www.google.com",
+                "description": "Google search engine"
+            }
+        }
+
 
 # Class to represent the URL request for shortening
 class UrlCreateSchema(UrlBaseSchema):
@@ -33,3 +42,4 @@ class ShortUrlSchema(ShortUrlBaseSchema):
 
     class Config:
         from_attributes = True
+        

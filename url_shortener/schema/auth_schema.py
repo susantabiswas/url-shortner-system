@@ -7,3 +7,9 @@ class Token(BaseModel):
 
     class Config:
         from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "email": "test@gmail.com",
+                "password": "test123"
+            }
+        }
