@@ -32,6 +32,15 @@ class UserDao(UserDaoBase):
     
         return user
 
+    async def get_user_by_email(self, email: str) -> User:
+        user = (
+            self.db.query(User)
+                .filter(User.email == email)
+                .first()
+        )
+    
+        return user
+
 
     async def delete_by_user_id(self, user_id: int) -> None:
         rows = self.db.query(User).filter(User.user_id == user_id).delete()

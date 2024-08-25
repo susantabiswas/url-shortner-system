@@ -9,6 +9,7 @@ from url_shortener.dao.dao_base import DaoBase, ShortUrlDaoBase, UserDaoBase
 from url_shortener.dao.short_url_dao import ShortUrlDao
 from url_shortener.dao.user_dao import UserDao
 from passlib.context import CryptContext
+from url_shortener.exceptions import exceptions
 
 BASE_URL = get_settings().base_url + "/shortUrls"
 
@@ -85,6 +86,9 @@ class UserWorkflow:
         return user
 
     async def create_user(self, user: user_schema.UserCreate) -> user_model.User:
+        if self.user_dao.get_user_by_email(user.email):
+            exceptions.already_exists_exception(user.email)
+
         # hash the password before storing it in DB
         hashed_password = AuthWorkflow.get_password_hash(user.password)
         user.password = hashed_password
