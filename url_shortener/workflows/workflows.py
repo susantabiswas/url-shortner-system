@@ -2,7 +2,7 @@ import secrets
 from url_shortener.schema import short_url_schema
 from url_shortener.models import short_url_model
 from url_shortener.models import user_model
-from url_shortener.schema import user_schema
+from url_shortener.schema import user_schema, auth_schema
 from sqlalchemy.orm import Session
 from url_shortener.config import get_settings
 from url_shortener.dao.dao_base import DaoBase, ShortUrlDaoBase, UserDaoBase
@@ -10,8 +10,14 @@ from url_shortener.dao.short_url_dao import ShortUrlDao
 from url_shortener.dao.user_dao import UserDao
 from passlib.context import CryptContext
 from url_shortener.exceptions import exceptions
+from fastapi.exceptions import HTTPException
+from datetime import datetime, timedelta
+import jwt
 
 BASE_URL = get_settings().base_url + "/shortUrls"
+JWT_SECRET_KEY = get_settings().jwt_secret_key
+JWT_TOKEN_EXPIRY_IN_MINUTES = get_settings().jwt_token_expiry_in_minutes
+JWT_ALGORITHM = "HS256"
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -72,6 +78,9 @@ class UrlShortenerWorkflow:
         short_url.short_url = BASE_URL + "/" + short_url.url_hash
         return short_url
 
+    async def get_short_url_by_hash(self, url_hash: str):
+        return await self.shorturl_dao.get_by_url_hash(url_hash)
+
 
     async def delete_by_url_hash(self, url_hash: str):
         return await self.shorturl_dao.delete_by_url_hash(url_hash)
@@ -106,3 +115,49 @@ class AuthWorkflow:
     @staticmethod
     def get_password_hash(password: str) -> str:
         return pwd_context.hash(password)
+
+    @staticmethod
+    async def validate_password(plain_pwd: str, hashed_pwd: str):
+        return pwd_context.verify(plain_pwd, hashed_pwd)
+
+
+class OAuthWorkflow(AuthWorkflow):
+    # OAuth2
+    # 1. fetch username and pwd from request
+    # 2. check if user exists
+    # 3. validate pwd for valid user
+    # 4. if valid, generate and return a JWT token with updated TTL expiry
+
+    def __init__(self, db):
+        self.user_dao: UserDaoBase = UserDao(db)
+
+    # Creates a JWT token
+    @staticmethod
+    async def create_jwt_access_token(payload: dict):
+        jwt_expiry = datetime.utcnow() + \
+            timedelta(minutes=JWT_TOKEN_EXPIRY_IN_MINUTES)
+
+        payload['exp'] = jwt_expiry
+        jwt_token = jwt.encode(payload=payload, key=JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        return jwt_token
+
+
+    async def authenticate(self, username: str, plain_password: str) -> auth_schema.Token:
+        # Check if the user exists
+        user = await self.user_dao.get_user_by_email(username)
+
+        # Dev Note: Don't throw exception specifying that the user doesnt
+        # exists, as that can acts as a predicate for checking if an email
+        # exists in case of a brute force attack by an attacker
+        if not user or \
+            (not await OAuthWorkflow.validate_password(plain_password, user.hashed_password)):
+            raise HTTPException(
+                status_code=401, 
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"})
+
+        # Generate a JWT token for the valid user
+        jwt = await OAuthWorkflow.create_jwt_access_token({"sub": username})
+        return auth_schema.Token(access_token=jwt, token_type="bearer")
+
+
