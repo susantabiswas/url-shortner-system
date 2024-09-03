@@ -3,7 +3,6 @@ from url_shortener.api import short_urls, users, auth
 from url_shortener.utils.database import db_manager, Base
 from url_shortener.config import get_settings
 import uvicorn
-from url_shortener.config import get_settings
 
 # Create the associated ORM tables
 db_manager.create_tables()

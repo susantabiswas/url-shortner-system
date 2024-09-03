@@ -43,7 +43,7 @@ async def get_long_url(
     if url:
         return RedirectResponse(url=url.long_url)
     else:
-        exceptions.not_found_exception(request.url)
+        exceptions.not_found_exception(str(request.url))
 
 
 @shorturl_router.delete("/shortUrls/{url_key}")

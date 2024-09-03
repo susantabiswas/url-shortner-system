@@ -1,9 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 
 
 # Base class to represent a Url
 class UrlBaseSchema(BaseModel):
-    long_url: str
+    long_url: HttpUrl
     description: str = None
 
     class Config:
