@@ -17,9 +17,12 @@ from datetime import datetime, timedelta
 import jwt
 
 BASE_URL = get_settings().base_url + "/shortUrls"
+
 JWT_SECRET_KEY = get_settings().jwt_secret_key
 JWT_TOKEN_EXPIRY_IN_MINUTES = get_settings().jwt_token_expiry_in_minutes
 JWT_ALGORITHM = "HS256"
+
+URL_HASH_KEY_LEN = get_settings().url_hash_key_length
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -56,12 +59,12 @@ class UrlShortenerWorkflow:
             self,
             url: short_url_schema.UrlBaseSchema) -> short_url_schema.ShortUrlBaseSchema:
 
-        url_hash = await UrlShortenerWorkflow.generate_hash_key()
+        url_hash = await UrlShortenerWorkflow.generate_hash_key(URL_HASH_KEY_LEN)
 
         # an url hash key is only accepted if it is unique,
         # incase there is already a key, generate another one
         while await self.shorturl_dao.get_by_url_hash(url_hash):
-            url_hash = UrlShortenerWorkflow.generate_hash_key()
+            url_hash = UrlShortenerWorkflow.generate_hash_key(URL_HASH_KEY_LEN)
         
         short_url = await self.shorturl_dao.insert(
             long_url=url.long_url,
@@ -114,9 +117,6 @@ class UserWorkflow:
 
 
 class AuthWorkflow:
-    def __init__(self, db):
-        self.user_dao: UserDaoBase = UserDaoBase(db)
-
     @staticmethod
     def get_password_hash(password: str) -> str:
         return pwd_context.hash(password)
@@ -135,7 +135,7 @@ class OAuthWorkflow(HTTPBearer):
 
     def __init__(self, auto_error: bool = True):
         super(OAuthWorkflow, self).__init__(auto_error=auto_error)
-        self.user_dao: UserDaoBase = UserDao()
+        self.user_dao: UserDaoBase = get_user_dao()
 
     # Callable, when the object is called, then this will fetch the user
     # corresponding to the JWT token. In case the token is invalid, exception is raised
@@ -197,10 +197,12 @@ class OAuthWorkflow(HTTPBearer):
                 raise HTTPException(status_code=401, detail="Invalid token")
 
             expiry = payload.get("exp")
-            if expiry is None or expiry < datetime.utcnow().timestamp():
-                raise HTTPException(status_code=401, detail="Token is expired")
-
-        except jwt.PyJWTError:
+            if expiry is None or datetime.utcfromtimestamp(expiry) < datetime.utcnow().timestamp():
+                raise HTTPException(status_code=401, detail="Token has expired")
+        
+        except jwt.ExpiredSignatureError:
+            raise HTTPException(status_code=401, detail="Token has expired")
+        except jwt.InvalidTokenError:
             raise HTTPException(status_code=401, detail="Invalid token")
 
         print(f"JWT decoded for username: {username}")

@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str = None
     jwt_token_expiry_in_minutes: int = 60
     fastapi_port: int = 8080
+    url_hash_key_length: int = 6
 
     # load the class with the .env file values
     # since we are using pydantic, the values will also be type
