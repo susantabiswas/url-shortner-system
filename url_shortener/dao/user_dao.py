@@ -5,7 +5,7 @@ from url_shortener.models.user_model import User
 from sqlalchemy.orm import Session
 from url_shortener.exceptions import exceptions
 from url_shortener.utils.database import db_manager
-
+from sqlalchemy import inspect
 
 class UserDao(UserDaoBase):
     @contextmanager
@@ -20,7 +20,6 @@ class UserDao(UserDaoBase):
             raise
         finally:
             session.close()
-
 
     async def insert(self, user: UserCreate, hashed_password: str) -> User:
         with self.session_scope() as db:
@@ -38,7 +37,9 @@ class UserDao(UserDaoBase):
             # we need to return a new instance of the User model
             # explicitly to avoid the issue of the model being deleted when the session is closed
             # when the scope of context manager ends.
-            return User(id=user.id, email=user.email, fullname=user.fullname)
+            # In the below way, we extract the attributes of the user object and creates
+            # a new User object with those attributes.
+            return User(**super().get_orm_model_attributes(user))
 
 
     async def get_by_user_id(self, user_id: int) -> User:
@@ -50,7 +51,7 @@ class UserDao(UserDaoBase):
             )
 
             if user:
-                return User(id=user.id, email=user.email, fullname=user.fullname)
+                return User(**super().get_orm_model_attributes(user))
 
             return None
 
@@ -63,12 +64,12 @@ class UserDao(UserDaoBase):
             )
 
             if user:
-                return User(id=user.id, email=user.email, fullname=user.fullname)
+                return User(**super().get_orm_model_attributes(user))
 
             return None
 
 
-    async def delete_by_user_id(self, user_id: int) -> Integer:
+    async def delete_by_user_id(self, user_id: int) -> int:
         rows = 0
         with self.session_scope() as db:
             rows = db.query(User).filter(User.user_id == user_id).delete()
@@ -78,3 +79,7 @@ class UserDao(UserDaoBase):
 
         print(f"user with Id: {user_id} deleted.")
         return rows
+
+
+def get_user_dao() -> UserDao:
+    return UserDao()
