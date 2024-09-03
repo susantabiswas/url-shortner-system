@@ -29,10 +29,10 @@ class UrlShortenerWorkflow:
     # Contains possible chars: a-zA-Z0-9
     char_set: str = ""
 
-    def __init__(self, db):
+    def __init__(self):
         # To perform the DB operations, we use the DAO object
         # for ShortUrl model
-        self.shorturl_dao: ShortUrlDaoBase = ShortUrlDao(db)
+        self.shorturl_dao: ShortUrlDaoBase = ShortUrlDao()
         
         # A-Z
         for ch in range(ord('A'), ord('A') + 26):

@@ -30,7 +30,8 @@ async def shorten_url(
     if not validators.url(url.long_url):
         exceptions.bad_request_exception(msg="Input URL is not valid.")
 
-    return await UrlShortenerWorkflow(db).create_short_url(url)
+    print('Creating short url for user: ', user.email)
+    return await UrlShortenerWorkflow().create_short_url(url)
 
 
 @shorturl_router.get("/shortUrls/{url_key}")
@@ -53,5 +54,5 @@ async def delete_shorturl(
         db: Session = Depends(get_db),
         user: user_model.User = Depends(OAuthWorkflow())):
         
-    _ = await UrlShortenerWorkflow(db).delete_by_url_hash(url_key)
+    _ = await UrlShortenerWorkflow().delete_by_url_hash(url_key)
     return {"message": f"URL key: {url_key} deleted successfully."}

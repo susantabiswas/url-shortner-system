@@ -5,6 +5,8 @@ from url_shortener.config import get_settings
 import uvicorn
 from url_shortener.config import get_settings
 
+# Create the associated ORM tables
+db_manager.create_tables()
 
 FASTAPI_PORT = get_settings().fastapi_port
 
@@ -14,10 +16,6 @@ app.include_router(auth.oauth2_router)
 app.include_router(
     short_urls.shorturl_router)
 app.include_router(users.user_router)
-
-# Create the associated ORM tables
-db_manager.create_tables()
-
 
 @app.get("/")
 async def root():

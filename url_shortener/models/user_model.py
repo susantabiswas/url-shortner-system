@@ -1,8 +1,8 @@
 from sqlalchemy import Boolean, Column, Integer, String
-from url_shortener.utils import database
+from url_shortener.utils.database import Base
 
 
-class User(database.Base):
+class User(Base):
     __tablename__ = "users"
 
     user_id = Column(Integer, primary_key=True)  # Auto generated internally

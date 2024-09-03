@@ -1,9 +1,9 @@
 from sqlalchemy import Boolean, Column, Integer, String
-from url_shortener.utils.database import DatabaseManager
+from url_shortener.utils.database import Base
 
 
 # DB Schema for storing the ShortUrl details.
-class ShortUrl(DatabaseManager.Base):
+class ShortUrl(Base):
     __tablename__ = "short_urls"
 
     id = Column(Integer, primary_key=True)

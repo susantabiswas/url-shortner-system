@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, Engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from url_shortener.config import get_settings
+from typing import Annotated
 
 
 class DatabaseManager:
@@ -43,7 +44,7 @@ class DatabaseManager:
     def get_engine(self) -> Engine:
         return self.engine
 
-    async def get_db(self) -> Session:
+    def get_db(self) -> Session:
         """Get a db session instance of :class:`Session`.
 
         Yields:
@@ -55,9 +56,15 @@ class DatabaseManager:
         finally:
             db.close()
 
+    def get_session(self) -> Session:
+        return self.SessionLocal()
+
     def create_tables(self) -> None:
         DatabaseManager.Base.metadata.create_all(bind=self.get_engine())
 
+
+# Required for creating ORM classes
+Base = DatabaseManager.Base
 
 # Create the instance for exporting
 db_manager = DatabaseManager(
@@ -65,7 +72,4 @@ db_manager = DatabaseManager(
     connect_args={"check_same_thread": False})
 
 # Required for getting the db session
-get_db = db_manager.get_db
-
-# Required for creating ORM classes
-Base = DatabaseManager.Base
+get_db: Session = db_manager.get_db
