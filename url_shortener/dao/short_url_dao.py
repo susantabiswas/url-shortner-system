@@ -49,7 +49,7 @@ class ShortUrlDao(ShortUrlDaoBase):
             )
 
             if url:
-                return ShortUrl(**super().get_orm_model_attributes(short_url))
+                return ShortUrl(**super().get_orm_model_attributes(url))
 
             return None
 
