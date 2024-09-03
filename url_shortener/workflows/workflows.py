@@ -6,9 +6,8 @@ from url_shortener.schema import user_schema, auth_schema
 from sqlalchemy.orm import Session
 from url_shortener.config import get_settings
 from url_shortener.dao.dao_base import DaoBase, ShortUrlDaoBase, UserDaoBase
-from url_shortener.dao.short_url_dao import ShortUrlDao
-from url_shortener.dao.user_dao import UserDao
-from url_shortener.utils.database import get_db
+from url_shortener.dao.short_url_dao import ShortUrlDao, get_shorturl_dao
+from url_shortener.dao.user_dao import UserDao, get_user_dao
 from passlib.context import CryptContext
 from url_shortener.exceptions import exceptions
 from fastapi import Request, Depends, status
@@ -32,7 +31,7 @@ class UrlShortenerWorkflow:
     def __init__(self):
         # To perform the DB operations, we use the DAO object
         # for ShortUrl model
-        self.shorturl_dao: ShortUrlDaoBase = ShortUrlDao()
+        self.shorturl_dao: ShortUrlDaoBase = get_shorturl_dao()
         
         # A-Z
         for ch in range(ord('A'), ord('A') + 26):
@@ -92,21 +91,22 @@ class UrlShortenerWorkflow:
 
 
 class UserWorkflow:
-    def __init__(self, db):
-        self.user_dao: UserDaoBase = UserDao(db)
+    def __init__(self):
+        self.user_dao: UserDaoBase = get_user_dao()
 
     async def get_user(self, user_id: int) -> user_model.User:
         user = await self.user_dao.get_by_user_id(user_id)
         return user
 
     async def create_user(self, user: user_schema.UserCreate) -> user_model.User:
-        if self.user_dao.get_user_by_email(user.email):
+        if await self.user_dao.get_user_by_email(user.email):
             exceptions.already_exists_exception(user.email)
 
         # hash the password before storing it in DB
         hashed_password = AuthWorkflow.get_password_hash(user.password)
         user.password = hashed_password
         user = await self.user_dao.insert(user, hashed_password)
+
         return user
 
     async def delete_user(self, user_id: int):
@@ -133,15 +133,15 @@ class OAuthWorkflow(HTTPBearer):
     # 3. validate pwd for valid user
     # 4. if valid, generate and return a JWT token with updated TTL expiry
 
-    def __init__(self, db: Session = Depends(get_db), auto_error: bool = True):
+    def __init__(self, auto_error: bool = True):
         super(OAuthWorkflow, self).__init__(auto_error=auto_error)
-        self.user_dao: UserDaoBase = UserDao(db)
+        self.user_dao: UserDaoBase = UserDao()
 
     # Callable, when the object is called, then this will fetch the user
     # corresponding to the JWT token. In case the token is invalid, exception is raised
     # using this, we can directly use this class as a dependency in the FastAPI routes
-    async def __call__(self, request: Request, db: Session = Depends(get_db)):
-        self.user_dao: UserDaoBase = UserDao(db)
+    async def __call__(self, request: Request):
+        self.user_dao: UserDaoBase = UserDao()
         credentials: HTTPAuthorizationCredentials = await super(OAuthWorkflow, self).__call__(request)
         
         if not credentials:

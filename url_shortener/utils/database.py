@@ -44,18 +44,6 @@ class DatabaseManager:
     def get_engine(self) -> Engine:
         return self.engine
 
-    def get_db(self) -> Session:
-        """Get a db session instance of :class:`Session`.
-
-        Yields:
-            db: instance of :class:`Session`
-        """
-        db = self.SessionLocal()
-        try:
-            yield db
-        finally:
-            db.close()
-
     def get_session(self) -> Session:
         return self.SessionLocal()
 
@@ -70,6 +58,3 @@ Base = DatabaseManager.Base
 db_manager = DatabaseManager(
     get_settings().db_url,
     connect_args={"check_same_thread": False})
-
-# Required for getting the db session
-get_db: Session = db_manager.get_db

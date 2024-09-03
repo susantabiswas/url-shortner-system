@@ -4,8 +4,8 @@ from url_shortener.models import user_model
 from url_shortener.workflows.workflows import UserWorkflow, OAuthWorkflow
 from url_shortener.schema import user_schema
 from sqlalchemy.orm import Session
-from url_shortener.utils.database import get_db
 from fastapi.security import OAuth2PasswordBearer
+from url_shortener.exceptions import exceptions
 
 user_router = APIRouter(
     tags=["users"]
@@ -14,29 +14,29 @@ user_router = APIRouter(
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 @user_router.post("/users")
-async def create_user(
-    user: user_schema.UserCreate,
-    db: Session = Depends(get_db)) -> user_schema.UserDetails:
+async def create_user(user: user_schema.UserCreate) -> user_schema.UserDetails:
     
-    user = await UserWorkflow(db).create_user(user)
+    user = await UserWorkflow().create_user(user)
+    print('User created: ', user.email, user.user_id, user.fullname, user.is_active)
     return user
 
 
 @user_router.get("/users/{user_id}")
 async def get_user(
     token: Annotated[str, Depends(oauth2_scheme)],
-    user_id: int,
-    db: Session = Depends(get_db)) -> user_schema.UserDetails:
+    user_id: int) -> user_schema.UserDetails:
     
-    _ = await OAuthWorkflow(db).get_current_user(token)
-    return await UserWorkflow(db).get_user(user_id)
+    # Authenticate user token and then get the user details
+    _ = await OAuthWorkflow().get_current_user(token)
+    user = await UserWorkflow().get_user(user_id)
+
+    if not user:
+        exceptions.not_found_exception(user_id)
+    return user
 
 
 @user_router.delete("/users/{user_id}")
-async def delete_user(
-    user_id: int,
-    db: Session = Depends(get_db)
-):
-    status = await UserWorkflow(db).delete_user(user_id)
+async def delete_user(user_id: int):
+    status = await UserWorkflow().delete_user(user_id)
     print(status)
     return {"message": f"UserId: {user_id} deleted successfully."}
