@@ -31,10 +31,10 @@ class UrlShortenerWorkflow:
     # Contains possible chars: a-zA-Z0-9
     char_set: str = ""
 
-    def __init__(self):
+    def __init__(self, shorturl_dao: ShortUrlDaoBase):
         # To perform the DB operations, we use the DAO object
         # for ShortUrl model
-        self.shorturl_dao: ShortUrlDaoBase = get_shorturl_dao()
+        self.shorturl_dao: ShortUrlDaoBase = shorturl_dao
         
         # A-Z
         for ch in range(ord('A'), ord('A') + 26):
@@ -94,8 +94,8 @@ class UrlShortenerWorkflow:
 
 
 class UserWorkflow:
-    def __init__(self):
-        self.user_dao: UserDaoBase = get_user_dao()
+    def __init__(self, user_dao: UserDaoBase):
+        self.user_dao: UserDaoBase = user_dao
 
     async def get_user(self, user_id: int) -> user_model.User:
         user = await self.user_dao.get_by_user_id(user_id)
@@ -135,13 +135,14 @@ class OAuthWorkflow(HTTPBearer):
 
     def __init__(self, auto_error: bool = True):
         super(OAuthWorkflow, self).__init__(auto_error=auto_error)
-        self.user_dao: UserDaoBase = get_user_dao()
 
     # Callable, when the object is called, then this will fetch the user
     # corresponding to the JWT token. In case the token is invalid, exception is raised
     # using this, we can directly use this class as a dependency in the FastAPI routes
-    async def __call__(self, request: Request):
-        self.user_dao: UserDaoBase = UserDao()
+    async def __call__(self, request: Request, user_dao: UserDaoBase):
+        self.user_dao: UserDaoBase = user_dao
+
+        # Call the parent class to extract the credentials from the request
         credentials: HTTPAuthorizationCredentials = await super(OAuthWorkflow, self).__call__(request)
         
         if not credentials:
@@ -215,3 +216,7 @@ class OAuthWorkflow(HTTPBearer):
         return user
 
 
+async def get_oauthworkflow(request: Request) -> OAuthWorkflow:
+    oauth_workflow = OAuthWorkflow()
+    user = await oauth_workflow(request, get_user_dao())
+    return user
