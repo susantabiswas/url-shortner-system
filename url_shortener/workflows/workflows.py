@@ -197,7 +197,7 @@ class OAuthWorkflow(HTTPBearer):
                 raise HTTPException(status_code=401, detail="Invalid token")
 
             expiry = payload.get("exp")
-            if expiry is None or datetime.utcfromtimestamp(expiry) < datetime.utcnow().timestamp():
+            if expiry is None or datetime.utcfromtimestamp(expiry) < datetime.utcnow():
                 raise HTTPException(status_code=401, detail="Token has expired")
         
         except jwt.ExpiredSignatureError:

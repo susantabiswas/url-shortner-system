@@ -3,7 +3,7 @@ from pydantic import BaseModel, HttpUrl
 
 # Base class to represent a Url
 class UrlBaseSchema(BaseModel):
-    long_url: HttpUrl
+    long_url: str
     description: str = None
 
     class Config:
