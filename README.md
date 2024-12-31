@@ -1,2 +1,2 @@
 # url-shortner-system
-URL shortner implementation with all production grade practices
+URL shortener implementation with best practices
